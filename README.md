@@ -46,12 +46,6 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-## 📖 Usage
-
-- **Institution Login:** `http://localhost:3000/login/institution` (username: `viit`, password: `viit`)
-- **Student Login:** `http://localhost:3000/login/student` (PRN: `22420303`, password: `studentpass`)
-- Connect MetaMask to Hardhat Local network (Chain ID: 1337)
-
 ## 🔐 Security
 
 - **Never commit `.env` files** - They contain API keys
