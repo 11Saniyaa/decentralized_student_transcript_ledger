@@ -46,8 +46,29 @@ backend/contract-artifacts/*.json
 # Testing
 coverage/
 
-# Sensitive scripts
+# Sensitive scripts and test files
 backend/update-password.js
 backend/fix-and-test.js
 backend/test-registration*.js
+backend/test-api.js
+backend/test-fund.js
 backend/setup-mongodb.js
+backend/setup-contract.js
+backend/create-env.js
+backend/kill-port.ps1
+
+# Test files
+frontend/pages/test-registration.tsx
+frontend/pages/simple-test.html
+frontend/setup-env.js
+
+# Data files (user data)
+backend/data/
+data/
+
+# Temporary documentation files (keep only README.md)
+*.md
+!README.md
+
+# Unused helper files
+frontend/utils/metamask-helpers.ts
