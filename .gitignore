@@ -45,3 +45,9 @@ backend/contract-artifacts/*.json
 
 # Testing
 coverage/
+
+# Sensitive scripts
+backend/update-password.js
+backend/fix-and-test.js
+backend/test-registration*.js
+backend/setup-mongodb.js
