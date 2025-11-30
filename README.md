@@ -1,246 +1,85 @@
 # Decentralized Student Transcript Ledger
 
-A blockchain-based system for managing and verifying student transcripts using Ethereum smart contracts, IPFS for document storage, and a modern web interface.
+Blockchain-based system for managing and verifying student transcripts using Ethereum smart contracts and IPFS storage.
 
-## 🚀 Features
+## 🚀 Quick Start
 
-- **Blockchain Verification**: Transcripts are recorded on Ethereum blockchain (Sepolia testnet or local Hardhat)
-- **IPFS Storage**: Documents stored on Pinata IPFS for decentralized access
-- **Institution Dashboard**: Register students and upload transcripts
-- **Student Dashboard**: View and verify your own transcripts
-- **MetaMask Integration**: Secure wallet-based transactions
-- **File-based Storage**: No database required - uses local JSON files
-
-## 📋 Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- MetaMask browser extension
-- Pinata account (for IPFS storage)
-- Hardhat (for local blockchain development)
-
-## 🛠️ Installation
-
-### 1. Clone the Repository
+### 1. Install Dependencies
 
 ```bash
-git clone https://github.com/11Saniyaa/decentralized_student_transcript_ledger.git
-cd decentralized_student_transcript_ledger
+# Backend
+cd backend && npm install
+
+# Frontend
+cd frontend && npm install
+
+# Contract
+cd contract && npm install
 ```
 
-### 2. Install Dependencies
+### 2. Setup Environment
 
-**Backend:**
+Copy `.env.example` files to `.env` in each directory and fill in your values:
+- `backend/.env` - Add Pinata API keys and contract address
+- `frontend/.env` - Set `NEXT_PUBLIC_API_URL=http://localhost:5001`
+
+### 3. Run the Application
+
+**Terminal 1 - Hardhat Node:**
 ```bash
-cd backend
-npm install
+cd contract && npx hardhat node
 ```
 
-**Frontend:**
+**Terminal 2 - Deploy Contract:**
 ```bash
-cd frontend
-npm install
+cd contract && npx hardhat run scripts/deploy-local.js --network localhost
 ```
+Copy contract address to `backend/.env`
 
-**Contract:**
+**Terminal 3 - Backend:**
 ```bash
-cd contract
-npm install
+cd backend && npm run dev
 ```
 
-### 3. Environment Setup
-
-**⚠️ Important:** Never commit `.env` files! They contain sensitive keys. Use `.env.example` files as templates.
-
-**Backend Environment:**
-1. Copy `backend/env.example` to `backend/.env`
-2. Fill in your actual values:
-   - `PINATA_API_KEY` - Get from https://app.pinata.cloud/
-   - `PINATA_SECRET_API_KEY` - Get from https://app.pinata.cloud/
-   - `CONTRACT_ADDRESS` - Deploy contract first (see Step 2)
-
-**Frontend Environment:**
-1. Copy `frontend/env.example` to `frontend/.env`
-2. Set `NEXT_PUBLIC_API_URL=http://localhost:5001`
-
-**Contract Environment:**
-1. Copy `contract/env.example` to `contract/.env` (optional, only for Sepolia deployment)
-
-## 🚀 Running the Application
-
-### 1. Start Hardhat Node (Terminal 1)
-
+**Terminal 4 - Frontend:**
 ```bash
-cd contract
-npx hardhat node
+cd frontend && npm run dev
 ```
-
-Keep this running - it's your local blockchain.
-
-### 2. Deploy Contract (Terminal 2)
-
-```bash
-cd contract
-npx hardhat run scripts/deploy-local.js --network localhost
-```
-
-Copy the contract address and add it to `backend/.env` (create from `backend/env.example` if needed):
-```
-CONTRACT_ADDRESS=0xYourContractAddressHere
-```
-
-### 3. Start Backend Server (Terminal 3)
-
-```bash
-cd backend
-npm run dev
-```
-
-Server will run on `http://localhost:5001`
-
-### 4. Start Frontend (Terminal 4)
-
-```bash
-cd frontend
-npm run dev
-```
-
-Frontend will run on `http://localhost:3000`
 
 ## 📖 Usage
 
-### Institution Login
+- **Institution Login:** `http://localhost:3000/login/institution` (username: `viit`, password: `viit`)
+- **Student Login:** `http://localhost:3000/login/student` (PRN: `22420303`, password: `studentpass`)
+- Connect MetaMask to Hardhat Local network (Chain ID: 1337)
 
-1. Go to `http://localhost:3000/login/institution`
-2. Username: `viit`
-3. Password: `viit`
-4. Click "Connect MetaMask" and approve connection
-5. Switch MetaMask to "Hardhat Local" network (Chain ID: 1337)
+## 🔐 Security
 
-### Register Student
-
-1. Go to Institution Dashboard → Register Student
-2. Fill in student details (Name, PRN, Email, Department, Year, DOB)
-3. Click "Register Student"
-
-### Upload Transcript
-
-1. Go to Institution Dashboard → Create Transcript
-2. Search for student by PRN
-3. Select PDF file and fill in details
-4. Click "Upload Transcript"
-5. **Approve transaction in MetaMask popup** to generate blockchain hash
-
-### Student Login
-
-1. Go to `http://localhost:3000/login/student`
-2. Enter PRN: `22420303`
-3. Password: `studentpass`
-4. View your transcripts with blockchain verification
-
-## 🔧 Configuration
-
-### Using File Storage (Default)
-
-The application uses file-based storage by default (no database needed):
-- Students: `backend/data/students.json`
-- Transcripts: `backend/data/transcripts.json`
-
-### Using MongoDB (Optional)
-
-1. Copy `backend/env.example` to `backend/.env` if you haven't already
-2. Set `USE_FILE_STORAGE=false` in `backend/.env`
-3. Add your MongoDB connection string to `backend/.env`
-
-### MetaMask Setup
-
-1. Install MetaMask browser extension
-2. Add Hardhat Local network:
-   - Network Name: `Hardhat Local`
-   - RPC URL: `http://localhost:8545`
-   - Chain ID: `1337`
-   - Currency: `ETH`
-3. Connect wallet in the application
+- **Never commit `.env` files** - They contain API keys
+- Use `.env.example` files as templates
+- Keep your Pinata API keys secret
 
 ## 📁 Project Structure
 
 ```
-decentralized_student_transcript_ledger/
-├── backend/           # Express.js backend API
-│   ├── data/         # File-based storage (JSON files)
-│   ├── models/       # Data models
-│   ├── routes/       # API routes
-│   ├── utils/        # Utilities (IPFS, contract interaction)
-│   └── server.js     # Main server file
-├── frontend/         # Next.js frontend
-│   ├── pages/        # Next.js pages
-│   ├── utils/        # Frontend utilities (MetaMask)
-│   └── styles/       # CSS styles
-├── contract/         # Solidity smart contracts
-│   ├── contracts/    # Smart contract source
-│   ├── scripts/      # Deployment scripts
-│   └── test/         # Contract tests
-└── README.md         # This file
-```
-
-## 🔐 Security Notes
-
-- **Never commit `.env` files** - They contain API keys and private keys
-- Use `.env.example` files as templates
-- Keep your Pinata API keys secret
-- Never share your private keys
-- Use testnet for development, mainnet only for production
-
-## 🧪 Testing
-
-### Test Smart Contract
-
-```bash
-cd contract
-npx hardhat test
-```
-
-### Test Backend API
-
-```bash
-cd backend
-npm test
+├── backend/     # Express.js API
+├── frontend/    # Next.js frontend
+└── contract/    # Solidity smart contracts
 ```
 
 ## 📝 API Endpoints
 
-- `POST /api/students` - Register a new student
-- `GET /api/students` - Get all students
-- `GET /api/students/:prn` - Get student by PRN
+- `POST /api/students` - Register student
+- `GET /api/students` - List all students
 - `POST /api/transcripts` - Upload transcript
-- `GET /api/transcripts` - Get all transcripts
 - `GET /api/transcripts/:prn` - Get transcripts by PRN
-- `GET /api/contract-address` - Get contract address
 
-## 🛠️ Technologies Used
+## 🛠️ Technologies
 
-- **Frontend**: Next.js, React, TypeScript, ethers.js
-- **Backend**: Node.js, Express, Multer
-- **Blockchain**: Solidity, Hardhat, ethers.js
-- **Storage**: Pinata IPFS, Local JSON files (or MongoDB)
-- **Wallet**: MetaMask
+- Frontend: Next.js, React, TypeScript, ethers.js
+- Backend: Node.js, Express
+- Blockchain: Solidity, Hardhat
+- Storage: Pinata IPFS, Local JSON files
 
 ## 📄 License
 
-This project is open source and available under the MIT License.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Contact
-
-For questions or support, please open an issue on GitHub.
-
-## ⚠️ Important Notes
-
-- This is a development/demo project
-- Use testnet for testing
-- Never commit sensitive keys to Git
-- Always use `.env.example` as a template
-- Keep your private keys secure
+MIT License
