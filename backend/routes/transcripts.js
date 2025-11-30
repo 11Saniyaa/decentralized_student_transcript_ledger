@@ -7,7 +7,7 @@ const USE_FILE_STORAGE = process.env.USE_FILE_STORAGE === 'true' || !process.env
 const Transcript = USE_FILE_STORAGE ? require("../models/TranscriptFile") : require("../models/Transcript");
 const Student = USE_FILE_STORAGE ? require("../models/StudentFile") : require("../models/Student");
 const { uploadToIPFS } = require("../utils/ipfs");
-const { issueTranscriptOnChain } = require("../utils/contract");
+// Note: Backend does NOT sign transactions - only frontend MetaMask should sign
 
 // Configure multer for file uploads
 const upload = multer({
@@ -44,25 +44,16 @@ router.post("/", upload.single("file"), async (req, res) => {
     const ipfsResult = await uploadToIPFS(req.file.buffer, req.file.originalname);
     console.log(`✅ Transcript uploaded to Pinata! CID: ${ipfsResult.cid}`);
 
-    // Get transaction hash from request (if frontend sent it from MetaMask)
-    // Otherwise, try backend signing (fallback)
+    // Get transaction hash from request (MUST come from frontend MetaMask)
+    // Backend will NOT sign transactions - only frontend MetaMask should sign
     let txHash = req.body.txHash || "";
     let blockNumber = parseInt(req.body.blockNumber) || 0;
     
-    // If frontend didn't send hash, try backend signing (for backward compatibility)
-    if (!txHash && process.env.CONTRACT_ADDRESS) {
-      try {
-        const txResult = await issueTranscriptOnChain(
-          studentPRN,
-          ipfsResult.cid,
-          docName
-        );
-        txHash = txResult.txHash;
-        blockNumber = txResult.blockNumber;
-        console.log(`✅ Backend signed transaction: ${txHash}`);
-      } catch (error) {
-        console.warn("Backend transaction signing failed (frontend should use MetaMask):", error.message);
-      }
+    if (txHash) {
+      console.log(`✅ Using MetaMask transaction hash from frontend: ${txHash}`);
+    } else {
+      console.log("ℹ️  No transaction hash provided. Transcript uploaded to IPFS but not recorded on-chain.");
+      console.log("   To generate hash: Connect MetaMask and upload transcript again.");
     }
 
     // Save to database (MongoDB or file storage)

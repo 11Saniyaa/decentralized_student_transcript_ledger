@@ -67,8 +67,7 @@ backend/data/
 data/
 
 # Temporary documentation files (keep only README.md)
-*.md
-!README.md
+# Note: This pattern might be too broad, but we'll manually add README.md
 
 # Unused helper files
 frontend/utils/metamask-helpers.ts

@@ -34,6 +34,7 @@ export async function connectMetaMask(): Promise<WalletInfo> {
       })
       
       if (existingAccounts.length > 0) {
+        // Already connected - get full wallet info
         const provider = new ethers.BrowserProvider(window.ethereum)
         const signer = await provider.getSigner()
         const address = await signer.getAddress()
@@ -41,10 +42,37 @@ export async function connectMetaMask(): Promise<WalletInfo> {
           method: 'eth_chainId',
         })
         
+        // Check if on correct network, if not, prompt to switch
+        const currentChainId = parseInt(chainId, 16)
+        if (currentChainId !== 1337 && currentChainId !== 11155111) {
+          // Not on Hardhat Local or Sepolia - try to switch
+          try {
+            await switchToLocalNetwork()
+            // Get updated chain ID after switch
+            const newChainId = await window.ethereum.request({
+              method: 'eth_chainId',
+            })
+            pendingConnection = null // Reset
+            return {
+              address,
+              chainId: parseInt(newChainId, 16),
+              isConnected: true,
+            }
+          } catch (switchError: any) {
+            // If user rejects switch, still return connection but warn
+            pendingConnection = null // Reset
+            return {
+              address,
+              chainId: currentChainId,
+              isConnected: true,
+            }
+          }
+        }
+        
         pendingConnection = null // Reset
         return {
           address,
-          chainId: parseInt(chainId, 16),
+          chainId: currentChainId,
           isConnected: true,
         }
       }
@@ -54,18 +82,49 @@ export async function connectMetaMask(): Promise<WalletInfo> {
         method: 'eth_requestAccounts',
       })
 
-    // Get chain ID
-    const chainId = await window.ethereum.request({
-      method: 'eth_chainId',
-    })
+      if (accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock MetaMask.')
+      }
 
-    const provider = new ethers.BrowserProvider(window.ethereum)
-    const signer = await provider.getSigner()
-    const address = await signer.getAddress()
+      // Get chain ID
+      const chainId = await window.ethereum.request({
+        method: 'eth_chainId',
+      })
 
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const address = await signer.getAddress()
+      const currentChainId = parseInt(chainId, 16)
+
+      // Check if on correct network, if not, prompt to switch
+      if (currentChainId !== 1337 && currentChainId !== 11155111) {
+        try {
+          await switchToLocalNetwork()
+          // Get updated chain ID after switch
+          const newChainId = await window.ethereum.request({
+            method: 'eth_chainId',
+          })
+          pendingConnection = null // Reset
+          return {
+            address,
+            chainId: parseInt(newChainId, 16),
+            isConnected: true,
+          }
+        } catch (switchError: any) {
+          // If user rejects switch, still return connection
+          pendingConnection = null // Reset
+          return {
+            address,
+            chainId: currentChainId,
+            isConnected: true,
+          }
+        }
+      }
+
+      pendingConnection = null // Reset
       return {
         address,
-        chainId: parseInt(chainId, 16),
+        chainId: currentChainId,
         isConnected: true,
       }
     } catch (error: any) {
@@ -122,31 +181,80 @@ export async function getWalletAddress(): Promise<string | null> {
   }
 }
 
+export async function getWalletInfo(): Promise<WalletInfo | null> {
+  if (!window.ethereum) {
+    return null
+  }
+
+  try {
+    const accounts = await window.ethereum.request({
+      method: 'eth_accounts',
+    })
+
+    if (accounts.length === 0) {
+      return null
+    }
+
+    const chainId = await window.ethereum.request({
+      method: 'eth_chainId',
+    })
+
+    return {
+      address: accounts[0],
+      chainId: parseInt(chainId, 16),
+      isConnected: true,
+    }
+  } catch (error) {
+    console.error('Error getting wallet info:', error)
+    return null
+  }
+}
+
 export async function switchToLocalNetwork() {
   if (!window.ethereum) {
     throw new Error('MetaMask is not installed')
   }
 
+  const chainId = '0x539' // 1337 in hex for Hardhat local
+
   try {
+    // Try to switch to the network first
     await window.ethereum.request({
-      method: 'wallet_addEthereumChain',
-      params: [
-        {
-          chainId: '0x7A69', // 31337 in hex (Hardhat local)
-          chainName: 'Hardhat Local',
-          nativeCurrency: {
-            name: 'Ether',
-            symbol: 'ETH',
-            decimals: 18,
-          },
-          rpcUrls: ['http://localhost:8545'],
-          blockExplorerUrls: null,
-        },
-      ],
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId }],
     })
-  } catch (error: any) {
-    if (error.code !== 4902) {
-      throw error
+  } catch (switchError: any) {
+    // If network doesn't exist (error code 4902), add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: chainId,
+              chainName: 'Hardhat Local',
+              nativeCurrency: {
+                name: 'Ether',
+                symbol: 'ETH',
+                decimals: 18,
+              },
+              rpcUrls: ['http://localhost:8545'],
+              blockExplorerUrls: null,
+            },
+          ],
+        })
+      } catch (addError: any) {
+        // User rejected the request
+        if (addError.code === 4001) {
+          throw new Error('User rejected network addition')
+        }
+        throw addError
+      }
+    } else if (switchError.code === 4001) {
+      // User rejected the switch
+      throw new Error('User rejected network switch')
+    } else {
+      throw switchError
     }
   }
 }

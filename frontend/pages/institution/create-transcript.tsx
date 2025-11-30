@@ -3,8 +3,10 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
 import axios from 'axios'
-import { connectMetaMask, getWalletAddress, onAccountsChanged, type WalletInfo } from '../../utils/metamask'
+import { connectMetaMask, getWalletInfo, onAccountsChanged, onChainChanged, type WalletInfo } from '../../utils/metamask'
 import { issueTranscriptOnChain, getContractAddress } from '../../utils/contract'
+import { importHardhatAccount } from '../../utils/import-hardhat-account'
+import { fundMyAccount } from '../../utils/fundAccount'
 
 const API_URL = 'http://localhost:5001'
 
@@ -45,6 +47,8 @@ export default function CreateTranscript() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
+  const [showImportHelp, setShowImportHelp] = useState(false)
+  const [funding, setFunding] = useState(false)
   const [formData, setFormData] = useState({
     docName: '',
     gpa: '',
@@ -73,20 +77,24 @@ export default function CreateTranscript() {
         setWallet(null)
       }
     })
+
+    // Listen for chain changes
+    onChainChanged(() => {
+      checkWalletConnection()
+    })
   }, [router])
 
   const checkWalletConnection = async () => {
     try {
-      const address = await getWalletAddress()
-      if (address) {
-        setWallet({
-          address,
-          chainId: 0,
-          isConnected: true,
-        })
+      const walletInfo = await getWalletInfo()
+      if (walletInfo) {
+        setWallet(walletInfo)
+      } else {
+        setWallet(null)
       }
     } catch (error) {
       console.error('Error checking wallet:', error)
+      setWallet(null)
     }
   }
 
@@ -98,9 +106,79 @@ export default function CreateTranscript() {
       setWallet(walletInfo)
       setMessage({ type: 'success', text: 'Wallet connected successfully!' })
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to connect wallet' })
+      if (error.message?.includes('insufficient funds') || error.message?.includes('Insufficient funds')) {
+        setShowImportHelp(true)
+        setMessage({ 
+          type: 'error', 
+          text: 'Insufficient ETH. Click "Import Hardhat Account" below to get test ETH.' 
+        })
+      } else {
+        setMessage({ type: 'error', text: error.message || 'Failed to connect wallet' })
+      }
     } finally {
       setConnecting(false)
+    }
+  }
+
+  const handleImportAccount = async () => {
+    try {
+      const result = await importHardhatAccount(0)
+      if (result.success) {
+        setMessage({ 
+          type: 'info', 
+          text: result.message 
+        })
+        // Show instructions
+        alert(`Private key copied! Steps:\n\n1. Open MetaMask\n2. Click account icon (top right)\n3. Click "Import Account"\n4. Paste the private key\n5. Click "Import"\n6. Switch to imported account\n7. It has 10,000 ETH!`)
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to get account info' })
+    }
+  }
+
+  const handleFundAccount = async () => {
+    if (!wallet) {
+      setMessage({ type: 'error', text: 'Please connect MetaMask first' })
+      return
+    }
+
+    setFunding(true)
+    setMessage({ type: 'info', text: 'Requesting ETH from Hardhat...' })
+    
+    try {
+      const result = await fundMyAccount('1.0')
+      
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Account funded! Received 1.0 ETH. Balance: ${result.balance} ETH. Transaction: ${result.txHash?.substring(0, 10)}...` 
+        })
+        // Refresh wallet info to show new balance
+        setTimeout(async () => {
+          const walletInfo = await getWalletInfo()
+          if (walletInfo) {
+            setWallet(walletInfo)
+          }
+        }, 2000)
+      } else {
+        const errorMsg = result.error || 'Failed to fund account'
+        let detailedMsg = errorMsg
+        if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('connect')) {
+          detailedMsg = 'Cannot connect to Hardhat node. Make sure it is running: cd contract && npx hardhat node'
+        }
+        setMessage({ 
+          type: 'error', 
+          text: detailedMsg
+        })
+      }
+    } catch (error: any) {
+      console.error('Fund account error:', error)
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'Failed to fund account. Make sure Hardhat node is running on http://localhost:8545' 
+      })
+    } finally {
+      setFunding(false)
     }
   }
 
@@ -190,15 +268,17 @@ export default function CreateTranscript() {
       const transcript = uploadResponse.data.transcript
       const ipfsCid = transcript.ipfsCid
 
-      // If wallet is connected and contract address available, issue on-chain via MetaMask
+      // ALWAYS use MetaMask to generate transaction hash (if wallet is connected)
       let txHash = ''
       let blockNumber = 0
       
       if (wallet && wallet.isConnected) {
         try {
           const contractAddress = await getContractAddress()
-          if (contractAddress) {
-            setMessage({ type: 'info', text: '⏳ Please confirm the transaction in MetaMask popup...' })
+          if (!contractAddress) {
+            setMessage({ type: 'warning', text: '⚠️ Contract address not configured. Transcript uploaded but no blockchain hash generated.' })
+          } else {
+            setMessage({ type: 'info', text: '⏳ Generating transaction hash via MetaMask... Please confirm in MetaMask popup.' })
             
             // Call MetaMask transaction - user must approve in popup
             const txResult = await issueTranscriptOnChain(
@@ -217,9 +297,7 @@ export default function CreateTranscript() {
               blockNumber
             })
             
-            setMessage({ type: 'success', text: `✅ Transcript uploaded and verified on blockchain! Hash: ${txHash.substring(0, 10)}...` })
-          } else {
-            setMessage({ type: 'success', text: '✅ Transcript uploaded! (Contract address not configured - no blockchain verification)' })
+            setMessage({ type: 'success', text: `✅ Transcript uploaded and verified on blockchain! Hash: ${txHash.substring(0, 10)}...${txHash.substring(txHash.length - 6)}` })
           }
         } catch (error: any) {
           console.error('MetaMask transaction error:', error)
@@ -227,7 +305,9 @@ export default function CreateTranscript() {
           // Provide helpful error messages
           let errorMsg = error.message || 'Unknown error'
           if (error.code === 4001 || error.message?.includes('user rejected') || error.message?.includes('not been authorized')) {
-            errorMsg = 'Transaction was rejected. Please approve the transaction in MetaMask to generate a hash.'
+            errorMsg = 'Transaction was rejected in MetaMask. Please approve the transaction to generate a hash.'
+          } else if (error.message?.includes('insufficient funds') || error.message?.includes('Insufficient funds')) {
+            errorMsg = 'Insufficient ETH for gas fees. Click "Get Free ETH" button to fund your account, then try again.'
           } else if (error.message?.includes('already pending') || error.code === -32002) {
             errorMsg = 'A MetaMask request is already pending. Please check MetaMask and approve/reject it, then try uploading again.'
           } else if (error.message?.includes('network')) {
@@ -238,10 +318,10 @@ export default function CreateTranscript() {
             errorMsg = 'Please wait for the current transaction to complete before uploading another transcript.'
           }
           
-          setMessage({ type: 'warning', text: `⚠️ Transcript uploaded to IPFS, but blockchain transaction failed: ${errorMsg}` })
+          setMessage({ type: 'warning', text: `⚠️ Transcript uploaded to IPFS, but blockchain hash generation failed: ${errorMsg}` })
         }
       } else {
-        setMessage({ type: 'success', text: '✅ Transcript uploaded! (Connect MetaMask and upload again to verify on blockchain)' })
+        setMessage({ type: 'warning', text: '⚠️ Connect MetaMask and upload again to generate blockchain transaction hash.' })
       }
 
       // Refresh transcripts
@@ -306,23 +386,84 @@ export default function CreateTranscript() {
           <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
             {wallet ? (
               <div>
-                <p style={{ margin: 0, color: '#10b981' }}>
-                  Wallet Connected: {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  <p style={{ margin: 0, color: '#10b981' }}>
+                    Wallet Connected: {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
+                  </p>
+                  <span style={{ 
+                    padding: '4px 8px', 
+                    borderRadius: '4px', 
+                    fontSize: '12px',
+                    backgroundColor: wallet.chainId === 1337 || wallet.chainId === 11155111 ? '#10b981' : '#ef4444',
+                    color: 'white'
+                  }}>
+                    {wallet.chainId === 1337 ? 'Hardhat Local' : wallet.chainId === 11155111 ? 'Sepolia' : `Chain ${wallet.chainId}`}
+                  </span>
+                </div>
+                {(wallet.chainId !== 1337 && wallet.chainId !== 11155111) && (
+                  <p style={{ margin: 0, fontSize: '12px', color: '#fbbf24' }}>
+                    ⚠️ Please switch to Hardhat Local (Chain ID: 1337) for transactions
+                  </p>
+                )}
               </div>
             ) : (
               <div>
                 <p style={{ marginBottom: '10px', color: '#94a3b8' }}>
                   Connect your MetaMask wallet to create transcripts
                 </p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleConnectWallet}
-                  disabled={connecting}
-                >
-                  {connecting ? 'Connecting...' : 'Connect MetaMask'}
-                </button>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleConnectWallet}
+                    disabled={connecting}
+                  >
+                    {connecting ? 'Connecting...' : 'Connect MetaMask'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleImportAccount}
+                    style={{ backgroundColor: '#1e40af', borderColor: '#1e40af' }}
+                  >
+                    Import Hardhat Account
+                  </button>
+                </div>
+                {wallet && (
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleFundAccount}
+                      disabled={funding}
+                      style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
+                    >
+                      {funding ? 'Funding...' : '💰 Get Free ETH (1.0 ETH)'}
+                    </button>
+                    <p style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
+                      Automatically fund your account with 1.0 ETH from Hardhat
+                    </p>
+                  </div>
+                )}
+                {showImportHelp && (
+                  <div style={{ marginTop: '15px', padding: '12px', backgroundColor: '#1e3a8a', borderRadius: '6px', border: '1px solid #3b82f6' }}>
+                    <p style={{ margin: '0 0 10px 0', color: '#93c5fd', fontSize: '14px' }}>
+                      <strong>Need Test ETH?</strong> Import Hardhat Account #0 (has 10,000 ETH):
+                    </p>
+                    <div style={{ backgroundColor: '#0f172a', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
+                      <p style={{ margin: '0 0 5px 0', color: '#cbd5e1', fontSize: '12px' }}>Private Key:</p>
+                      <code style={{ color: '#10b981', fontSize: '11px', wordBreak: 'break-all' }}>
+                        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+                      </code>
+                    </div>
+                    <ol style={{ margin: '0', paddingLeft: '20px', color: '#cbd5e1', fontSize: '12px' }}>
+                      <li>Open MetaMask → Account icon → "Import Account"</li>
+                      <li>Paste the private key above</li>
+                      <li>Click "Import"</li>
+                      <li>Switch to imported account (has 10,000 ETH!)</li>
+                    </ol>
+                  </div>
+                )}
               </div>
             )}
           </div>
