@@ -1,0 +1,24 @@
+{
+  "name": "student-transcript-ledger",
+  "version": "1.0.0",
+  "description": "Blockchain-based Student Transcript Ledger - Full Stack Project",
+  "scripts": {
+    "install:all": "cd contract && npm install && cd ../backend && npm install && cd ../frontend && npm install",
+    "contract:compile": "cd contract && npm run compile",
+    "contract:test": "cd contract && npm run test",
+    "contract:deploy": "cd contract && npm run deploy:sepolia",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:seed": "cd backend && npm run seed",
+    "frontend:dev": "cd frontend && npm run dev",
+    "copy-artifacts": "cd backend && node scripts/copy-artifacts.js"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "ipfs",
+    "transcript",
+    "ledger"
+  ],
+  "author": "",
+  "license": "MIT"
+}

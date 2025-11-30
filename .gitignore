@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables (NEVER commit these - they contain secrets!)
+.env
+.env.local
+.env*.local
+backend/.env
+frontend/.env
+contract/.env
+**/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Contract artifacts and cache
+contract/artifacts/
+contract/cache/
+contract/coverage/
+
+# Backend
+backend/contract-artifacts/*.json
+!backend/contract-artifacts/.gitkeep
+
+# Testing
+coverage/
