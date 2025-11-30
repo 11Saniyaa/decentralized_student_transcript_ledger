@@ -50,38 +50,21 @@ npm install
 
 ### 3. Environment Setup
 
-**Backend Environment (`backend/.env`):**
-```env
-# Server Configuration
-PORT=5001
-NODE_ENV=development
-USE_FILE_STORAGE=true
-
-# Pinata IPFS Configuration
-PINATA_API_KEY=your_pinata_api_key
-PINATA_SECRET_API_KEY=your_pinata_secret_key
-
-# Smart Contract Configuration
-CONTRACT_ADDRESS=your_contract_address
-HARDHAT_RPC_URL=http://localhost:8545
-
-# Optional: MongoDB (if not using file storage)
-# MONGO_URI=your_mongodb_connection_string
-```
-
-**Frontend Environment (`frontend/.env`):**
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5001
-```
-
-**Contract Environment (`contract/.env`):**
-```env
-# Optional: For Sepolia deployment
-# ALCHEMY_SEPOLIA_URL=your_alchemy_url
-# PRIVATE_KEY=your_private_key
-```
-
 **⚠️ Important:** Never commit `.env` files! They contain sensitive keys. Use `.env.example` files as templates.
+
+**Backend Environment:**
+1. Copy `backend/env.example` to `backend/.env`
+2. Fill in your actual values:
+   - `PINATA_API_KEY` - Get from https://app.pinata.cloud/
+   - `PINATA_SECRET_API_KEY` - Get from https://app.pinata.cloud/
+   - `CONTRACT_ADDRESS` - Deploy contract first (see Step 2)
+
+**Frontend Environment:**
+1. Copy `frontend/env.example` to `frontend/.env`
+2. Set `NEXT_PUBLIC_API_URL=http://localhost:5001`
+
+**Contract Environment:**
+1. Copy `contract/env.example` to `contract/.env` (optional, only for Sepolia deployment)
 
 ## 🚀 Running the Application
 
