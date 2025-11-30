@@ -84,8 +84,8 @@ cd contract
 npx hardhat run scripts/deploy-local.js --network localhost
 ```
 
-Copy the contract address and add it to `backend/.env`:
-```env
+Copy the contract address and add it to `backend/.env` (create from `backend/env.example` if needed):
+```
 CONTRACT_ADDRESS=0xYourContractAddressHere
 ```
 
@@ -148,11 +148,9 @@ The application uses file-based storage by default (no database needed):
 
 ### Using MongoDB (Optional)
 
-1. Set `USE_FILE_STORAGE=false` in `backend/.env`
-2. Add your MongoDB connection string:
-   ```env
-   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
-   ```
+1. Copy `backend/env.example` to `backend/.env` if you haven't already
+2. Set `USE_FILE_STORAGE=false` in `backend/.env`
+3. Add your MongoDB connection string to `backend/.env`
 
 ### MetaMask Setup
 
